@@ -12,7 +12,8 @@ fi
 for j in {0..15}; do
     r=$((${j}*${shards}/5))
     acc=$(python aggregation.py --strategy uniform --container "${shards}" --shards "${shards}" --dataset datasets/purchase/datasetfile --label "${r}")
-    cat containers/"${shards}"/times/shard-*:"${r}".time > "containers/${shards}/times/times"
+    #cat /containers/"${shards}"/times/shard-*:"${r}".time > "/projectnb/ec523kb/students/gmharsh/unlearning/machine-unlearning/containers/${shards}/times/times"
+    cat "/projectnb/ec523kb/students/gmharsh/unlearning/machine-unlearning/containers/${shards}/times/shard-*:${r}.time" > "/projectnb/ec523kb/students/gmharsh/unlearning/machine-unlearning/containers/${shards}/times/times"
     time=$(python time.py --container "${shards}" | awk -F ',' '{print $1}')
     echo "${shards},${r},${acc},${time}" >> general-report.csv
 done

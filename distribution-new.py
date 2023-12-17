@@ -195,7 +195,29 @@ if args.requests != None:
             all_requests = all_requests.astype(int) ##
             #print("DEBUG: chkpt 5, successfully generated all_requests for pareto distribution")
         else:
-            all_requests = np.random.randint(0, datasetfile["nb_train"], args.requests)
+            print("Executing custom distribution section....")
+            partition = np.array(partition)
+
+            num_requests = args.requests  # Replace with your desired number of requests
+
+            # Get the total number of elements in the subarrays
+            total_elements = sum(len(subarray) for subarray in partition)
+
+            # Calculate the number of elements to take from each subarray
+            elements_per_subarray = num_requests // len(partition)
+
+            # Initialize the list to store the requests
+            all_requests = []
+
+            # Iterate over the subarrays and append elements from the end to the requests list
+            for subarray in partition:
+                all_requests.extend(subarray[-elements_per_subarray:])
+
+            # If there are remaining requests, add them from the last subarray
+            remaining_requests = num_requests - len(all_requests)
+            if remaining_requests != 0:
+                all_requests.extend(partition[-1][-remaining_requests:])
+            #all_requests = np.random.randint(0, datasetfile["nb_train"], args.requests)
 
         requests = []
         # Divide up the new requests among the shards.

@@ -179,7 +179,14 @@ if args.train:
 
             # Actual training.
             train_time = 0.0
-
+            # Could add a checkpoint debug line here, so that whenever we train, that shard -> label pair would have some training time
+            # that is not null
+            
+            
+            debug1_file_path = "debugging/debug1.txt"
+            with open(debug1_file_path, "a") as file:
+                file.write(f"\nDEBUG: Shard: {args.shard}\t Requests: {args.label}\t should have non-zero training time!")
+            
             for epoch in range(start_epoch, slice_epochs):
                 epoch_start_time = time()
 
