@@ -1,6 +1,12 @@
 import numpy as np
 import json
 import os
+import sklearn
+import numpy as np
+from sklearn.cluster import KMeans
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import cosine_similarity
 
 import argparse
 
@@ -52,6 +58,47 @@ if args.shards != None:
             requests,
         )
 
+    elif args.distribution == "kmeans":
+        X =np.load('/Users/harshil/Downloads/unlearning/machine-unlearning/datasets/purchase/purchase2_train.npy', allow_pickle=True).item()['X'][0:-15]
+        kmeans = KMeans(n_clusters=20, random_state=0).fit(X)
+        labels= kmeans.labels_
+        counts = np.bincount(labels)
+        n_clusters=20
+        target_points_per_cluster = len(X) // n_clusters
+        # Balancing cluster sizes
+        for i in range(n_clusters):
+            excess_points = counts[i] - target_points_per_cluster
+            if excess_points > 0:
+                indices = np.where(labels == i)[0]
+                np.random.shuffle(indices)
+                labels[indices[:excess_points]] = -1  # Temporary label for reassignment
+
+        # Reassigning points with temporary label to clusters with fewer points
+        for i in range(n_clusters):
+            if counts[i] < target_points_per_cluster:
+                indices = np.where(labels == -1)[0]
+                np.random.shuffle(indices)
+                labels[indices[:target_points_per_cluster - counts[i]]] = i
+
+        # Re-counting the number of points in each cluster
+        counts_after_balance = np.bincount(labels)
+
+        # Print the number of points in each cluster after balancing
+        print("Number of points in each cluster after balancing:", counts_after_balance)
+        
+        output=[[] for i in range(20)]
+        for i,l in enumerate(labels):
+            #print(l)
+            output[l].append(i)
+        partition = np.array(output)
+       
+        np.save("containers/{}/splitfile.npy".format(args.container), partition)
+        requests = np.array([[] for _ in range(args.shards)])
+        np.save(
+            "containers/{}/requestfile:{}.npy".format(args.container, args.label),
+            requests,
+        )
+
     # Else run PLS-GAP algorithm to find a low cost split.
     else:
 
@@ -80,9 +127,14 @@ if args.shards != None:
 
             # Put all points in the top queue.
             bottom_queue = queue.shape[0]  # pylint: disable=unsubscriptable-object
+            #lim = (
+            #    int(float(args.algo.split(":")[1]) * datasetfile["nb_train"])
+            #    if len(args.algo.split(":")) > 1
+            #    else int(0.01 * datasetfile["nb_train"])
+            #)
             lim = (
-                int(float(args.algo.split(":")[1]) * datasetfile["nb_train"])
-                if len(args.algo.split(":")) > 1
+                int(float(args.distribution.split(":")[1]) * datasetfile["nb_train"])
+                if len(args.distribution.split(":")) > 1
                 else int(0.01 * datasetfile["nb_train"])
             )
 
@@ -102,9 +154,9 @@ if args.shards != None:
 
                 # If merged cluster is smaller in number of points than the limit, insert it in top queue.
                 if merged_weight[1] < lim:
-                    # Top queue is ordered first by number of points (weight[1]) and second by cost (weight[0]).
+                   # Top queue is ordered first by number of points (weight[1]) and second by cost (weight[0]).
                     offset_array = np.where(queue[:bottom_queue, 1] >= merged_weight[1])
-                    limit_array = np.where(queue[:bottom_queue, 1] > merged_weight[1])
+                    limit_array = np.where(queue[:bottom_queue, 1] > merged_weight[1]) 
                     offset = (
                         offset_array[0][0]
                         if offset_array[0].shape[0] > 0
@@ -181,6 +233,61 @@ if args.requests != None:
                 else 1.16
             )
             all_requests = np.random.pareto(a, (args.requests,))
+        if args.distribution.split(":")[0] == "kmeans":
+
+            data =np.load('/Users/harshil/Downloads/unlearning/machine-unlearning/datasets/purchase/purchase2_train.npy', allow_pickle=True).item()
+            X= data['X'][0:-15]
+            # Generate cosine similarity matrix
+            S = cosine_similarity(X)
+
+            def find_most_similar_points(similarity_matrix, N):
+                # Get indices of the top N similar points for each data point
+                top_indices = np.argsort(similarity_matrix, axis=1)[:, -N-1:-1][:, ::-1]
+                
+                # Create a dictionary to store the most similar points for each data point
+                most_similar_dict = {}
+                
+                # Iterate over each data point and store the most similar points
+                for i, indices in enumerate(top_indices):
+                    most_similar_dict[i] = list(zip(indices, similarity_matrix[i, indices]))
+                
+                return most_similar_dict
+
+            most_similar_points = find_most_similar_points(S, N)
+
+            kmeans = KMeans(n_clusters=20, random_state=0).fit(X)
+            labels= kmeans.labels_
+            counts = np.bincount(labels)
+            n_clusters=20
+            target_points_per_cluster = len(X) // n_clusters
+            # Balancing cluster sizes
+            for i in range(n_clusters):
+                excess_points = counts[i] - target_points_per_cluster
+                if excess_points > 0:
+                    indices = np.where(labels == i)[0]
+                    np.random.shuffle(indices)
+                    labels[indices[:excess_points]] = -1
+
+
+            # Reassigning points with temporary label to clusters with fewer points 
+            for i in range(n_clusters):
+                if counts[i] < target_points_per_cluster:
+                    indices = np.where(labels == -1)[0]
+                    np.random.shuffle(indices)
+                    labels[indices[:target_points_per_cluster - counts[i]]] = i
+            
+            # Re-counting the number of points in each cluster
+            counts_after_balance = np.bincount(labels)
+            
+            a = (
+                float(args.distribution.split(":")[1])
+                if len(args.distribution.split(":")) > 1
+                else 1.16
+            )
+
+            all_requests = np.random.pareto(a, (args.requests,))
+            all_requests = np.array([int(i) for i in all_requests])
+
         else:
             all_requests = np.random.randint(0, datasetfile["nb_train"], args.requests)
 
