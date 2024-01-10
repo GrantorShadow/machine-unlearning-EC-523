@@ -1,6 +1,6 @@
 # Machine Unlearning with SISA - EC523 with Prof. Kayhan Batmanghelich
 
-[[link to our report](https://drive.google.com/file/d/13QB1aaQCEodEsl4O-F0M-2J-fDTbIPag/view?usp=sharing)]
+[[link to our report](CS523_Project_Final_Report.pdf)]
 
 ### Harshil Gandhi, GM Harshvardhan, Shaunak Joshi
 
